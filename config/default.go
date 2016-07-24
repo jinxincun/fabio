@@ -26,6 +26,9 @@ var defaultConfig = &Config{
 		FlushInterval: time.Second,
 		LocalIP:       LocalIPString(),
 		LogRoutes:     "delta",
+		Log: Log{
+			Format: "common",
+		},
 	},
 	Registry: Registry{
 		Backend: "consul",

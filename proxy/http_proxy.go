@@ -2,10 +2,12 @@ package proxy
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/eBay/fabio/config"
+	"github.com/eBay/fabio/logger"
 	"github.com/eBay/fabio/metrics"
 	"github.com/eBay/fabio/proxy/gzip"
 	"github.com/eBay/fabio/route"
@@ -26,6 +28,13 @@ type HTTPProxy struct {
 
 	// Requests is a timer metric which is updated for every request.
 	Requests metrics.Timer
+
+	// Noroute is a counter metric which is updated for every request
+	// where Lookup() returns nil.
+	Noroute metrics.Counter
+
+	// Logger is the access logger for the requests.
+	Logger logger.HTTPLogger
 }
 
 func (p *HTTPProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -78,4 +87,27 @@ func (p *HTTPProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		p.Requests.UpdateSince(start)
 	}
 	t.Timer.UpdateSince(start)
+
+	if hr, ok := h.(responser); ok {
+		if resp := hr.response(); resp != nil {
+			name := key(resp.StatusCode)
+			metrics.DefaultRegistry.GetTimer(name).UpdateSince(start)
+			if p.Logger != nil {
+				p.Logger.Log(&logger.Event{
+					Start:        start,
+					End:          time.Now(),
+					Req:          r,
+					Resp:         resp,
+					UpstreamAddr: t.URL.Host,
+					UpstreamURL:  t.URL,
+				})
+			}
+		}
+	}
+}
+
+func key(code int) string {
+	b := []byte("http.status.")
+	b = strconv.AppendInt(b, int64(code), 10)
+	return string(b)
 }

@@ -57,6 +57,7 @@ type Proxy struct {
 	TLSHeaderValue        string
 	GZIPContentTypes      *regexp.Regexp
 	LogRoutes             string
+	Log                   Log
 }
 
 type Runtime struct {
@@ -70,6 +71,11 @@ type Circonus struct {
 	APIURL   string
 	CheckID  string
 	BrokerID string
+}
+
+type Log struct {
+	Target string
+	Format string
 }
 
 type Metrics struct {

@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -20,6 +21,7 @@ import (
 	"github.com/eBay/fabio/cert"
 	"github.com/eBay/fabio/config"
 	"github.com/eBay/fabio/exit"
+	"github.com/eBay/fabio/logger"
 	"github.com/eBay/fabio/metrics"
 	"github.com/eBay/fabio/proxy"
 	"github.com/eBay/fabio/proxy/tcp"
@@ -85,6 +87,30 @@ func main() {
 }
 
 func newHTTPProxy(cfg *config.Config) http.Handler {
+	var w io.Writer
+	switch cfg.Proxy.Log.Target {
+	case "":
+		log.Printf("[INFO] Access logging disabled")
+	case "stdout":
+		log.Printf("[INFO] Writing access log to stdout")
+		w = os.Stdout
+	default:
+		log.Fatal("[FATAL] Invalid access log target ", cfg.Proxy.Log.Target)
+	}
+
+	format := cfg.Proxy.Log.Format
+	switch format {
+	case "common":
+		format = logger.Common
+	case "combined":
+		format = logger.Combined
+	}
+
+	l, err := logger.New(w, format)
+	if err != nil {
+		log.Fatal("[FATAL] Invalid log format: ", err)
+	}
+
 	pick := route.Picker[cfg.Proxy.Strategy]
 	match := route.Matcher[cfg.Proxy.Matcher]
 	notFound := metrics.DefaultRegistry.GetCounter("notfound")
@@ -110,6 +136,8 @@ func newHTTPProxy(cfg *config.Config) http.Handler {
 			return t
 		},
 		Requests: metrics.DefaultRegistry.GetTimer("requests"),
+		Noroute:  metrics.DefaultRegistry.GetCounter("notfound"),
+		Logger:   l,
 	}
 }
 

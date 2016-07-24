@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"regexp"
 	"testing"
 
 	"github.com/eBay/fabio/config"
+	"github.com/eBay/fabio/logger"
 	"github.com/eBay/fabio/route"
 )
 
@@ -206,4 +208,44 @@ func compress(b []byte) []byte {
 		panic(err)
 	}
 	return buf.Bytes()
+}
+
+func BenchmarkProxyLogger(b *testing.B) {
+	got := "not called"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Get("X-Forwarded-For")
+	}))
+	defer server.Close()
+
+	format := "remote_addr time request body_bytes_sent http_referer http_user_agent server_name proxy_endpoint response_time request_args "
+	l, err := logger.New(os.Stdout, format)
+	if err != nil {
+		b.Fatal("logger.NewHTTPLogger:", err)
+	}
+
+	proxy := &HTTPProxy{
+		Config: config.Proxy{
+			LocalIP:        "1.1.1.1",
+			ClientIPHeader: "X-Forwarded-For",
+		},
+		Transport: http.DefaultTransport,
+		Lookup: func(r *http.Request) *route.Target {
+			tbl, _ := route.NewTable("route add mock / " + server.URL)
+			return tbl.Lookup(r, "", route.Picker["rr"], route.Matcher["prefix"])
+		},
+		Logger: l,
+	}
+
+	req := &http.Request{
+		RequestURI: "/",
+		Header:     http.Header{"X-Forwarded-For": {"1.2.3.4"}},
+		RemoteAddr: "2.2.2.2:666",
+		URL:        &url.URL{},
+		Method:     "GET",
+		Proto:      "HTTP/1.1",
+	}
+
+	for i := 0; i < b.N; i++ {
+		proxy.ServeHTTP(httptest.NewRecorder(), req)
+	}
 }
