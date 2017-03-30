@@ -57,6 +57,7 @@ type Event struct {
 	Start, End   time.Time
 	Req          *http.Request
 	Resp         *http.Response
+	RequestURL   *url.URL
 	UpstreamAddr string
 	UpstreamURL  *url.URL
 }
@@ -66,7 +67,7 @@ type HTTPLogger interface {
 }
 
 func New(w io.Writer, format string) (HTTPLogger, error) {
-	p, err := parse(format, fields)
+	p, err := parse(format, Fields)
 	if err != nil {
 		return nil, err
 	}

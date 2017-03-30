@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +18,10 @@ import (
 type HTTPProxy struct {
 	// Config is the proxy configuration as provided during startup.
 	Config config.Proxy
+
+	// Time returns the current time as the number of seconds since the epoch.
+	// If Time is nil, HTTPProxy uses time.Now.
+	Time func() time.Time
 
 	// Transport is the http connection pool configured with timeouts.
 	// The proxy will panic if this value is nil.
@@ -53,12 +58,33 @@ func (p *HTTPProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// build the request url since r.URL will get modified
+	// by the reverse proxy and contains only the RequestURI anyway
+	requestURL := &url.URL{
+		Scheme:   scheme(r),
+		Host:     r.Host,
+		Path:     r.URL.Path,
+		RawQuery: r.URL.RawQuery,
+	}
+
+	// build the real target url that is passed to the proxy
+	targetURL := &url.URL{
+		Scheme: t.URL.Scheme,
+		Host:   t.URL.Host,
+		Path:   r.URL.Path,
+	}
+	if t.URL.RawQuery == "" || r.URL.RawQuery == "" {
+		targetURL.RawQuery = t.URL.RawQuery + r.URL.RawQuery
+	} else {
+		targetURL.RawQuery = t.URL.RawQuery + "&" + r.URL.RawQuery
+	}
+
 	// TODO(fs): The HasPrefix check seems redundant since the lookup function should
 	// TODO(fs): have found the target based on the prefix but there may be other
 	// TODO(fs): matchers which may have different rules. I'll keep this for
 	// TODO(fs): a defensive approach.
 	if t.StripPath != "" && strings.HasPrefix(r.URL.Path, t.StripPath) {
-		r.URL.Path = r.URL.Path[len(t.StripPath):]
+		targetURL.Path = targetURL.Path[len(t.StripPath):]
 	}
 
 	upgrade, accept := r.Header.Get("Upgrade"), r.Header.Get("Accept")
@@ -66,40 +92,48 @@ func (p *HTTPProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var h http.Handler
 	switch {
 	case upgrade == "websocket" || upgrade == "Websocket":
-		h = newRawProxy(t.URL)
+		h = newRawProxy(targetURL)
 
 	case accept == "text/event-stream":
 		// use the flush interval for SSE (server-sent events)
 		// must be > 0s to be effective
-		h = newHTTPProxy(t.URL, p.Transport, p.Config.FlushInterval)
+		h = newHTTPProxy(targetURL, p.Transport, p.Config.FlushInterval)
 
 	default:
-		h = newHTTPProxy(t.URL, p.Transport, time.Duration(0))
+		h = newHTTPProxy(targetURL, p.Transport, time.Duration(0))
 	}
 
 	if p.Config.GZIPContentTypes != nil {
 		h = gzip.NewGzipHandler(h, p.Config.GZIPContentTypes)
 	}
 
-	start := time.Now()
+	timeNow := p.Time
+	if timeNow == nil {
+		timeNow = time.Now
+	}
+
+	start := timeNow()
 	h.ServeHTTP(w, r)
 	if p.Requests != nil {
 		p.Requests.UpdateSince(start)
 	}
-	t.Timer.UpdateSince(start)
+	if t.Timer != nil {
+		t.Timer.UpdateSince(start)
+	}
 
-	if hr, ok := h.(responser); ok {
+	if hr, ok := h.(responseKeeper); ok {
 		if resp := hr.response(); resp != nil {
 			name := key(resp.StatusCode)
 			metrics.DefaultRegistry.GetTimer(name).UpdateSince(start)
 			if p.Logger != nil {
 				p.Logger.Log(&logger.Event{
 					Start:        start,
-					End:          time.Now(),
+					End:          timeNow(),
 					Req:          r,
 					Resp:         resp,
-					UpstreamAddr: t.URL.Host,
-					UpstreamURL:  t.URL,
+					RequestURL:   requestURL,
+					UpstreamAddr: targetURL.Host,
+					UpstreamURL:  targetURL,
 				})
 			}
 		}

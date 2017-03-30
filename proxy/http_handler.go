@@ -7,16 +7,30 @@ import (
 	"time"
 )
 
-func newHTTPProxy(t *url.URL, tr http.RoundTripper, flush time.Duration) http.Handler {
-	rp := httputil.NewSingleHostReverseProxy(t)
-	rp.Transport = tr
-	rp.FlushInterval = flush
-	rp.Transport = &transport{tr, nil}
+func newHTTPProxy(target *url.URL, tr http.RoundTripper, flush time.Duration) http.Handler {
+	rp := &httputil.ReverseProxy{
+		// this is a simplified director function based on the
+		// httputil.NewSingleHostReverseProxy() which does not
+		// mangle the request and target URL since the target
+		// URL is already in the correct format.
+		Director: func(req *http.Request) {
+			req.URL.Scheme = target.Scheme
+			req.URL.Host = target.Host
+			req.URL.Path = target.Path
+			req.URL.RawQuery = target.RawQuery
+			if _, ok := req.Header["User-Agent"]; !ok {
+				// explicitly disable User-Agent so it's not set to default value
+				req.Header.Set("User-Agent", "")
+			}
+		},
+		FlushInterval: flush,
+		Transport:     &transport{tr, nil},
+	}
 	return &httpHandler{rp}
 }
 
-// responser exposes the response from an HTTP request.
-type responser interface {
+// responseKeeper exposes the response from an HTTP request.
+type responseKeeper interface {
 	response() *http.Response
 }
 

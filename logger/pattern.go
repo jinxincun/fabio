@@ -89,7 +89,7 @@ var shortMonthNames = []string{
 	"Dec",
 }
 
-var fields = map[string]field{
+var Fields = map[string]field{
 	"$remote_addr": func(b *bytes.Buffer, e *Event) {
 		b.WriteString(e.Req.RemoteAddr)
 	},
@@ -109,7 +109,11 @@ var fields = map[string]field{
 		b.WriteString(e.Req.Proto)
 	},
 	"$request_args": func(b *bytes.Buffer, e *Event) {
-		b.WriteString(e.Req.URL.RawQuery)
+		// cannot use e.Req.URL since it may have been modified
+		if e.RequestURL == nil {
+			return
+		}
+		b.WriteString(e.RequestURL.RawQuery)
 	},
 	"$request_host": func(b *bytes.Buffer, e *Event) {
 		b.WriteString(e.Req.Host)
@@ -118,13 +122,21 @@ var fields = map[string]field{
 		b.WriteString(e.Req.Method)
 	},
 	"$request_scheme": func(b *bytes.Buffer, e *Event) {
-		b.WriteString(e.Req.URL.Scheme)
+		// cannot use e.Req.URL since it may have been modified
+		if e.RequestURL == nil {
+			return
+		}
+		b.WriteString(e.RequestURL.Scheme)
 	},
 	"$request_uri": func(b *bytes.Buffer, e *Event) {
 		b.WriteString(e.Req.RequestURI)
 	},
 	"$request_url": func(b *bytes.Buffer, e *Event) {
-		b.WriteString(e.Req.URL.String())
+		// cannot use e.Req.URL since it may have been modified
+		if e.RequestURL == nil {
+			return
+		}
+		b.WriteString(e.RequestURL.String())
 	},
 	"$request_proto": func(b *bytes.Buffer, e *Event) {
 		b.WriteString(e.Req.Proto)
