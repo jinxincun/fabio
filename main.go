@@ -88,17 +88,17 @@ func main() {
 
 func newHTTPProxy(cfg *config.Config) http.Handler {
 	var w io.Writer
-	switch cfg.Proxy.Log.Target {
+	switch cfg.Log.AccessTarget {
 	case "":
 		log.Printf("[INFO] Access logging disabled")
 	case "stdout":
 		log.Printf("[INFO] Writing access log to stdout")
 		w = os.Stdout
 	default:
-		log.Fatal("[FATAL] Invalid access log target ", cfg.Proxy.Log.Target)
+		log.Fatal("[FATAL] Invalid access log target ", cfg.Log.AccessTarget)
 	}
 
-	format := cfg.Proxy.Log.Format
+	format := cfg.Log.AccessFormat
 	switch format {
 	case "common":
 		format = logger.Common
@@ -302,7 +302,7 @@ func watchBackend(cfg *config.Config, first chan bool) {
 			continue
 		}
 		route.SetTable(t)
-		logRoutes(last, next, cfg.Proxy.LogRoutes)
+		logRoutes(last, next, cfg.Log.RoutesFormat)
 		last = next
 
 		once.Do(func() { close(first) })

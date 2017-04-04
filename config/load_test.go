@@ -310,27 +310,6 @@ func TestLoad(t *testing.T) {
 			},
 		},
 		{
-			args: []string{"-proxy.log.routes", "foobar"},
-			cfg: func(cfg *Config) *Config {
-				cfg.Proxy.LogRoutes = "foobar"
-				return cfg
-			},
-		},
-		{
-			args: []string{"-proxy.log.format", "foobar"},
-			cfg: func(cfg *Config) *Config {
-				cfg.Proxy.Log.Format = "foobar"
-				return cfg
-			},
-		},
-		{
-			args: []string{"-proxy.log.target", "foobar"},
-			cfg: func(cfg *Config) *Config {
-				cfg.Proxy.Log.Target = "foobar"
-				return cfg
-			},
-		},
-		{
 			args: []string{"-registry.backend", "value"},
 			cfg: func(cfg *Config) *Config {
 				cfg.Registry.Backend = "value"
@@ -464,6 +443,34 @@ func TestLoad(t *testing.T) {
 			args: []string{"-registry.consul.service.status", "a, b, "},
 			cfg: func(cfg *Config) *Config {
 				cfg.Registry.Consul.ServiceStatus = []string{"a", "b"}
+				return cfg
+			},
+		},
+		{
+			args: []string{"-log.access.format", "foobar"},
+			cfg: func(cfg *Config) *Config {
+				cfg.Log.AccessFormat = "foobar"
+				return cfg
+			},
+		},
+		{
+			args: []string{"-log.access.target", "foobar"},
+			cfg: func(cfg *Config) *Config {
+				cfg.Log.AccessTarget = "foobar"
+				return cfg
+			},
+		},
+		{
+			args: []string{"-log.routes.format", "foobar"},
+			cfg: func(cfg *Config) *Config {
+				cfg.Log.RoutesFormat = "foobar"
+				return cfg
+			},
+		},
+		{
+			args: []string{"-proxy.log.routes", "foobar"},
+			cfg: func(cfg *Config) *Config {
+				cfg.Log.RoutesFormat = "foobar"
 				return cfg
 			},
 		},
