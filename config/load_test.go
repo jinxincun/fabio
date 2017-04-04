@@ -310,6 +310,13 @@ func TestLoad(t *testing.T) {
 			},
 		},
 		{
+			args: []string{"-proxy.log.routes", "foobar"},
+			cfg: func(cfg *Config) *Config {
+				cfg.Log.RoutesFormat = "foobar"
+				return cfg
+			},
+		},
+		{
 			args: []string{"-registry.backend", "value"},
 			cfg: func(cfg *Config) *Config {
 				cfg.Registry.Backend = "value"
@@ -462,13 +469,6 @@ func TestLoad(t *testing.T) {
 		},
 		{
 			args: []string{"-log.routes.format", "foobar"},
-			cfg: func(cfg *Config) *Config {
-				cfg.Log.RoutesFormat = "foobar"
-				return cfg
-			},
-		},
-		{
-			args: []string{"-proxy.log.routes", "foobar"},
 			cfg: func(cfg *Config) *Config {
 				cfg.Log.RoutesFormat = "foobar"
 				return cfg

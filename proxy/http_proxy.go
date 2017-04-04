@@ -20,7 +20,7 @@ type HTTPProxy struct {
 	Config config.Proxy
 
 	// Time returns the current time as the number of seconds since the epoch.
-	// If Time is nil, HTTPProxy uses time.Now.
+	// If Time is nil, time.Now is used.
 	Time func() time.Time
 
 	// Transport is the http connection pool configured with timeouts.
@@ -114,29 +114,38 @@ func (p *HTTPProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	start := timeNow()
 	h.ServeHTTP(w, r)
+	end := timeNow()
+	dur := end.Sub(start)
+
 	if p.Requests != nil {
-		p.Requests.UpdateSince(start)
+		p.Requests.Update(dur)
 	}
 	if t.Timer != nil {
-		t.Timer.UpdateSince(start)
+		t.Timer.Update(dur)
 	}
 
-	if hr, ok := h.(responseKeeper); ok {
-		if resp := hr.response(); resp != nil {
-			name := key(resp.StatusCode)
-			metrics.DefaultRegistry.GetTimer(name).UpdateSince(start)
-			if p.Logger != nil {
-				p.Logger.Log(&logger.Event{
-					Start:        start,
-					End:          timeNow(),
-					Request:      r,
-					Response:     resp,
-					RequestURL:   requestURL,
-					UpstreamAddr: targetURL.Host,
-					UpstreamURL:  targetURL,
-				})
-			}
-		}
+	// get response and update metrics
+	hr, ok := h.(responseKeeper)
+	if !ok {
+		return
+	}
+	resp := hr.response()
+	if resp == nil {
+		return
+	}
+	metrics.DefaultRegistry.GetTimer(key(resp.StatusCode)).Update(dur)
+
+	// write access log
+	if p.Logger != nil {
+		p.Logger.Log(&logger.Event{
+			Start:        start,
+			End:          end,
+			Request:      r,
+			Response:     resp,
+			RequestURL:   requestURL,
+			UpstreamAddr: targetURL.Host,
+			UpstreamURL:  targetURL,
+		})
 	}
 }
 

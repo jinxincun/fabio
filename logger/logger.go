@@ -65,12 +65,15 @@ type Event struct {
 	End time.Time
 
 	// Request is the HTTP request that is connected to this event.
+	// It should only be set for HTTP log events.
 	Request *http.Request
 
 	// Response is the HTTP response which is connected to this event.
+	// It should only be set for HTTP log events.
 	Response *http.Response
 
 	// RequestURL is the URL of the incoming HTTP request.
+	// It should only be set for HTTP log events.
 	RequestURL *url.URL
 
 	// UpstreamAddr is the TCP address in the form of "host:port" of the
@@ -78,6 +81,7 @@ type Event struct {
 	UpstreamAddr string
 
 	// UpstreamURL is the URL which was sent to the upstream server.
+	// It should only be set for HTTP log events.
 	UpstreamURL *url.URL
 }
 
