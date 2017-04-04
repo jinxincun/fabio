@@ -44,7 +44,7 @@ func TestParse(t *testing.T) {
 			continue
 		}
 		var b bytes.Buffer
-		p.write(&b, &Event{Start: time.Time{}, End: time.Time{}, Req: req})
+		p.write(&b, &Event{Start: time.Time{}, End: time.Time{}, Request: req})
 		if got, want := string(b.Bytes()), tt.out; got != want {
 			t.Errorf("%d: got %q want %q", i, got, want)
 		}
@@ -58,7 +58,7 @@ func TestLog(t *testing.T) {
 	e := &Event{
 		Start: start,
 		End:   start.Add(123456789 * time.Nanosecond),
-		Req: &http.Request{
+		Request: &http.Request{
 			RequestURI: rurl.RequestURI(),
 			Header: http.Header{
 				"User-Agent":      {"Mozilla Firefox"},
@@ -71,7 +71,7 @@ func TestLog(t *testing.T) {
 			Method:     "GET",
 			Proto:      "HTTP/1.1",
 		},
-		Resp: &http.Response{
+		Response: &http.Response{
 			StatusCode:    200,
 			ContentLength: 1234,
 			Header:        http.Header{"foo": []string{"bar"}},
@@ -79,6 +79,7 @@ func TestLog(t *testing.T) {
 				RemoteAddr: "5.6.7.8:1234",
 			},
 		},
+		RequestURL:   rurl,
 		UpstreamAddr: uurl.Host,
 		UpstreamURL:  uurl,
 	}
@@ -176,7 +177,7 @@ func BenchmarkLog(b *testing.B) {
 	e := &Event{
 		Start: start,
 		End:   start.Add(100 * time.Millisecond),
-		Req: &http.Request{
+		Request: &http.Request{
 			RequestURI: "/?q=x",
 			Header: http.Header{
 				"User-Agent":      {"Mozilla Firefox"},
@@ -193,7 +194,7 @@ func BenchmarkLog(b *testing.B) {
 			Method: "GET",
 			Proto:  "HTTP/1.1",
 		},
-		Resp: &http.Response{
+		Response: &http.Response{
 			StatusCode:    200,
 			ContentLength: 1234,
 			Header:        http.Header{"foo": []string{"bar"}},
@@ -212,7 +213,7 @@ func BenchmarkLog(b *testing.B) {
 	// BenchmarkLog/go_text/template-8  	  100000	     19026 ns/op	     848 B/op	      76 allocs/op
 	b.Run("custom parser", func(b *testing.B) {
 		var keys []string
-		for k := range fields {
+		for k := range Fields {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
@@ -233,7 +234,7 @@ func BenchmarkLog(b *testing.B) {
 		// the same number of fields as for the other parser
 		// but using the same value.
 		tmpl := ""
-		for i := 0; i < len(fields); i++ {
+		for i := 0; i < len(Fields); i++ {
 			tmpl += "{{.Req.RemoteAddr}}"
 		}
 		t := template.Must(template.New("log").Parse(tmpl))

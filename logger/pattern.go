@@ -40,7 +40,10 @@ func parse(format string, fields map[string]field) (p pattern, err error) {
 	// header is a helper to add an HTTP header to the log output.
 	header := func(name string) field {
 		return func(b *bytes.Buffer, e *Event) {
-			b.WriteString(e.Req.Header.Get(name))
+			if e.Request == nil || e.Request.Header == nil {
+				return
+			}
+			b.WriteString(e.Request.Header.Get(name))
 		}
 	}
 
@@ -91,22 +94,34 @@ var shortMonthNames = []string{
 
 var Fields = map[string]field{
 	"$remote_addr": func(b *bytes.Buffer, e *Event) {
-		b.WriteString(e.Req.RemoteAddr)
+		if e.Request == nil {
+			return
+		}
+		b.WriteString(e.Request.RemoteAddr)
 	},
 	"$remote_host": func(b *bytes.Buffer, e *Event) {
-		host, _ := hostport(e.Req.RemoteAddr)
+		if e.Request == nil {
+			return
+		}
+		host, _ := hostport(e.Request.RemoteAddr)
 		b.WriteString(host)
 	},
 	"$remote_port": func(b *bytes.Buffer, e *Event) {
-		_, port := hostport(e.Req.RemoteAddr)
+		if e.Request == nil {
+			return
+		}
+		_, port := hostport(e.Request.RemoteAddr)
 		b.WriteString(port)
 	},
 	"$request": func(b *bytes.Buffer, e *Event) {
-		b.WriteString(e.Req.Method)
+		if e.Request == nil {
+			return
+		}
+		b.WriteString(e.Request.Method)
 		b.WriteRune(' ')
-		b.WriteString(e.Req.RequestURI)
+		b.WriteString(e.Request.RequestURI)
 		b.WriteRune(' ')
-		b.WriteString(e.Req.Proto)
+		b.WriteString(e.Request.Proto)
 	},
 	"$request_args": func(b *bytes.Buffer, e *Event) {
 		// cannot use e.Req.URL since it may have been modified
@@ -116,10 +131,16 @@ var Fields = map[string]field{
 		b.WriteString(e.RequestURL.RawQuery)
 	},
 	"$request_host": func(b *bytes.Buffer, e *Event) {
-		b.WriteString(e.Req.Host)
+		if e.Request == nil {
+			return
+		}
+		b.WriteString(e.Request.Host)
 	},
 	"$request_method": func(b *bytes.Buffer, e *Event) {
-		b.WriteString(e.Req.Method)
+		if e.Request == nil {
+			return
+		}
+		b.WriteString(e.Request.Method)
 	},
 	"$request_scheme": func(b *bytes.Buffer, e *Event) {
 		// cannot use e.Req.URL since it may have been modified
@@ -129,7 +150,10 @@ var Fields = map[string]field{
 		b.WriteString(e.RequestURL.Scheme)
 	},
 	"$request_uri": func(b *bytes.Buffer, e *Event) {
-		b.WriteString(e.Req.RequestURI)
+		if e.Request == nil {
+			return
+		}
+		b.WriteString(e.Request.RequestURI)
 	},
 	"$request_url": func(b *bytes.Buffer, e *Event) {
 		// cannot use e.Req.URL since it may have been modified
@@ -139,13 +163,16 @@ var Fields = map[string]field{
 		b.WriteString(e.RequestURL.String())
 	},
 	"$request_proto": func(b *bytes.Buffer, e *Event) {
-		b.WriteString(e.Req.Proto)
+		if e.Request == nil {
+			return
+		}
+		b.WriteString(e.Request.Proto)
 	},
 	"$response_body_size": func(b *bytes.Buffer, e *Event) {
-		atoi(b, e.Resp.ContentLength, 0)
+		atoi(b, e.Response.ContentLength, 0)
 	},
 	"$response_status": func(b *bytes.Buffer, e *Event) {
-		atoi(b, int64(e.Resp.StatusCode), 0)
+		atoi(b, int64(e.Response.StatusCode), 0)
 	},
 	"$response_time_ms": func(b *bytes.Buffer, e *Event) {
 		d := e.End.Sub(e.Start).Nanoseconds()

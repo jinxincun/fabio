@@ -49,24 +49,47 @@ import (
 )
 
 const (
-	Common   = `$remote_host - - [$time_common] "$request" $response_status $response_body_size`
+	// Common defines the Apache Common Log file format.
+	Common = `$remote_host - - [$time_common] "$request" $response_status $response_body_size`
+
+	// Combined defines the Apache Combined Log file format.
 	Combined = `$remote_host - - [$time_common] "$request" $response_status $response_body_size "$header.Referer" "$header.User-Agent"`
 )
 
+// Event defines the elements of a loggable event.
 type Event struct {
-	Start, End   time.Time
-	Req          *http.Request
-	Resp         *http.Response
-	RequestURL   *url.URL
+	// Start is the time when the action that triggered the event started.
+	Start time.Time
+
+	// End is the time when the action that triggered the event was completed.
+	End time.Time
+
+	// Request is the HTTP request that is connected to this event.
+	Request *http.Request
+
+	// Response is the HTTP response which is connected to this event.
+	Response *http.Response
+
+	// RequestURL is the URL of the incoming HTTP request.
+	RequestURL *url.URL
+
+	// UpstreamAddr is the TCP address in the form of "host:port" of the
+	// upstream server which handled the proxied request.
 	UpstreamAddr string
-	UpstreamURL  *url.URL
+
+	// UpstreamURL is the URL which was sent to the upstream server.
+	UpstreamURL *url.URL
 }
 
-type HTTPLogger interface {
+// Logger logs an event.
+type Logger interface {
 	Log(*Event)
 }
 
-func New(w io.Writer, format string) (HTTPLogger, error) {
+// New creates a new logger that writes log events in the
+// given format to the provided writer. If the format
+// is empty or invalid an error is returned.
+func New(w io.Writer, format string) (Logger, error) {
 	p, err := parse(format, Fields)
 	if err != nil {
 		return nil, err

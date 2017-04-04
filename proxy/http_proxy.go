@@ -39,7 +39,7 @@ type HTTPProxy struct {
 	Noroute metrics.Counter
 
 	// Logger is the access logger for the requests.
-	Logger logger.HTTPLogger
+	Logger logger.Logger
 }
 
 func (p *HTTPProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -129,8 +129,8 @@ func (p *HTTPProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				p.Logger.Log(&logger.Event{
 					Start:        start,
 					End:          timeNow(),
-					Req:          r,
-					Resp:         resp,
+					Request:      r,
+					Response:     resp,
 					RequestURL:   requestURL,
 					UpstreamAddr: targetURL.Host,
 					UpstreamURL:  targetURL,
