@@ -109,7 +109,7 @@ type logger struct {
 	w  io.Writer
 }
 
-// BufSize defines the default size of the log buffers.
+// bufSize defines the default size of the log buffers.
 const bufSize = 1024
 
 // pool provides a reusable set of log buffers.
@@ -129,39 +129,4 @@ func (l *logger) Log(e *Event) {
 	l.w.Write(b.Bytes())
 	l.mu.Unlock()
 	pool.Put(b)
-}
-
-// atoi is a replacement for strconv.Atoi/strconv.FormatInt
-// which does not alloc.
-func atoi(b *bytes.Buffer, i int64, pad int) {
-	var flag bool
-	if i < 0 {
-		flag = true
-		i = -i
-	}
-
-	// format number
-	// 2^63-1 == 9223372036854775807
-	var d [128]byte
-	n, p := len(d), len(d)-1
-	for i >= 0 {
-		d[p] = byte('0') + byte(i%10)
-		i /= 10
-		p--
-		if i == 0 {
-			break
-		}
-	}
-
-	// padding
-	for n-p-1 < pad {
-		d[p] = byte('0')
-		p--
-	}
-
-	if flag {
-		d[p] = '-'
-		p--
-	}
-	b.Write(d[p+1:])
 }

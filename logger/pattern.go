@@ -286,6 +286,41 @@ func hostport(s string) (host, port string) {
 	return s[:n], s[n+1:]
 }
 
+// atoi is a replacement for strconv.Atoi/strconv.FormatInt
+// which does not alloc.
+func atoi(b *bytes.Buffer, i int64, pad int) {
+	var flag bool
+	if i < 0 {
+		flag = true
+		i = -i
+	}
+
+	// format number
+	// 2^63-1 == 9223372036854775807
+	var d [128]byte
+	n, p := len(d), len(d)-1
+	for i >= 0 {
+		d[p] = byte('0') + byte(i%10)
+		i /= 10
+		p--
+		if i == 0 {
+			break
+		}
+	}
+
+	// padding
+	for n-p-1 < pad {
+		d[p] = byte('0')
+		p--
+	}
+
+	if flag {
+		d[p] = '-'
+		p--
+	}
+	b.Write(d[p+1:])
+}
+
 // parse parses a format string into a pattern based on the following rules:
 //
 // The format string consists of text and fields. Field names start with a '$'
