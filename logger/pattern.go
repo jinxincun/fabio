@@ -3,14 +3,22 @@ package logger
 import (
 	"bytes"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
 
-// field renders a part of the log line.
-type field func(b *bytes.Buffer, e *Event)
+func init() {
+	for f := range fields {
+		Fields = append(Fields, f)
+	}
+	sort.Strings(Fields)
+}
 
-// Pattern is a log output format.
+// Fields contains a list of all known static log fields in alphabetical order.
+var Fields []string
+
+// pattern is a log output format.
 type pattern []field
 
 func (p pattern) write(b *bytes.Buffer, e *Event) {
@@ -23,76 +31,15 @@ func (p pattern) write(b *bytes.Buffer, e *Event) {
 	b.WriteRune('\n')
 }
 
-// parse parses a format string into a pattern based on the following rules:
-//
-// The format string consists of text and fields. Field names start with a '$'
-// and consist of ASCII characters [a-zA-Z0-9.-_]. Field names like
-// '$header.name' will render the HTTP header 'name'. All other field names
-// must exist in the fields map.
-func parse(format string, fields map[string]field) (p pattern, err error) {
-	// text is a helper to add raw text to the log output.
-	text := func(s string) field {
-		return func(b *bytes.Buffer, e *Event) {
-			b.WriteString(s)
-		}
-	}
-
-	// header is a helper to add an HTTP header to the log output.
-	header := func(name string) field {
-		return func(b *bytes.Buffer, e *Event) {
-			if e.Request == nil || e.Request.Header == nil {
-				return
-			}
-			b.WriteString(e.Request.Header.Get(name))
-		}
-	}
-
-	s := []rune(format)
-	for {
-		if len(s) == 0 {
-			break
-		}
-		typ, n := lex(s)
-		val := string(s[:n])
-		s = s[n:]
-		switch typ {
-		case itemText:
-			p = append(p, text(val))
-		case itemHeader:
-			p = append(p, header(val[len("$header."):]))
-		case itemField:
-			f := fields[val]
-			if f == nil {
-				return nil, fmt.Errorf("invalid field %q", val)
-			}
-			p = append(p, f)
-		}
-	}
-	return p, nil
-}
+// field renders a part of the log line.
+type field func(b *bytes.Buffer, e *Event)
 
 // fields contains the known log fields and their field functions. The field
 // functions should avoid to alloc memory at all cost since they are in the hot
 // path. Do not use fmt.Sprintf() but combine the value from the parts. Instead
 // of strconv.Atoi/FormatInt() use the local atoi() function which does not
 // alloc.
-var shortMonthNames = []string{
-	"---",
-	"Jan",
-	"Feb",
-	"Mar",
-	"Apr",
-	"May",
-	"Jun",
-	"Jul",
-	"Aug",
-	"Sep",
-	"Oct",
-	"Nov",
-	"Dec",
-}
-
-var Fields = map[string]field{
+var fields = map[string]field{
 	"$remote_addr": func(b *bytes.Buffer, e *Event) {
 		if e.Request == nil {
 			return
@@ -311,6 +258,22 @@ var Fields = map[string]field{
 	},
 }
 
+var shortMonthNames = []string{
+	"---",
+	"Jan",
+	"Feb",
+	"Mar",
+	"Apr",
+	"May",
+	"Jun",
+	"Jul",
+	"Aug",
+	"Sep",
+	"Oct",
+	"Nov",
+	"Dec",
+}
+
 // hostport is a simplified no-alloc version of
 // net.SplitHostPort. Since we know that the
 // address values have the correct form we can
@@ -321,6 +284,54 @@ func hostport(s string) (host, port string) {
 	}
 	n := strings.LastIndexByte(s, ':')
 	return s[:n], s[n+1:]
+}
+
+// parse parses a format string into a pattern based on the following rules:
+//
+// The format string consists of text and fields. Field names start with a '$'
+// and consist of ASCII characters [a-zA-Z0-9.-_]. Field names like
+// '$header.name' will render the HTTP header 'name'. All other field names
+// must exist in the fields map.
+func parse(format string, fields map[string]field) (p pattern, err error) {
+	// text is a helper to add raw text to the log output.
+	text := func(s string) field {
+		return func(b *bytes.Buffer, e *Event) {
+			b.WriteString(s)
+		}
+	}
+
+	// header is a helper to add an HTTP header to the log output.
+	header := func(name string) field {
+		return func(b *bytes.Buffer, e *Event) {
+			if e.Request == nil || e.Request.Header == nil {
+				return
+			}
+			b.WriteString(e.Request.Header.Get(name))
+		}
+	}
+
+	s := []rune(format)
+	for {
+		if len(s) == 0 {
+			break
+		}
+		typ, n := lex(s)
+		val := string(s[:n])
+		s = s[n:]
+		switch typ {
+		case itemText:
+			p = append(p, text(val))
+		case itemHeader:
+			p = append(p, header(val[len("$header."):]))
+		case itemField:
+			f := fields[val]
+			if f == nil {
+				return nil, fmt.Errorf("invalid field %q", val)
+			}
+			p = append(p, f)
+		}
+	}
+	return p, nil
 }
 
 type itemType int

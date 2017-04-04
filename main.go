@@ -101,9 +101,9 @@ func newHTTPProxy(cfg *config.Config) http.Handler {
 	format := cfg.Log.AccessFormat
 	switch format {
 	case "common":
-		format = logger.Common
+		format = logger.CommonFormat
 	case "combined":
-		format = logger.Combined
+		format = logger.CombinedFormat
 	}
 
 	l, err := logger.New(w, format)

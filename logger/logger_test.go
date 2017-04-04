@@ -213,7 +213,7 @@ func BenchmarkLog(b *testing.B) {
 	// BenchmarkLog/go_text/template-8  	  100000	     19026 ns/op	     848 B/op	      76 allocs/op
 	b.Run("custom parser", func(b *testing.B) {
 		var keys []string
-		for k := range Fields {
+		for k := range fields {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
@@ -234,7 +234,7 @@ func BenchmarkLog(b *testing.B) {
 		// the same number of fields as for the other parser
 		// but using the same value.
 		tmpl := ""
-		for i := 0; i < len(Fields); i++ {
+		for i := 0; i < len(fields); i++ {
 			tmpl += "{{.Req.RemoteAddr}}"
 		}
 		t := template.Must(template.New("log").Parse(tmpl))

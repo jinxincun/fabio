@@ -92,10 +92,9 @@ func TestProxyStripsPath(t *testing.T) {
 func TestProxyLogOutput(t *testing.T) {
 	// build a format string from all log fields and one header field
 	fields := []string{"header.X-Foo:$header.X-Foo"}
-	for k := range logger.Fields {
+	for _, k := range logger.Fields {
 		fields = append(fields, k[1:]+":"+k)
 	}
-	sort.Strings(fields)
 	format := strings.Join(fields, ";")
 
 	// create a logger
